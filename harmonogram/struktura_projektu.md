@@ -15,7 +15,7 @@
 | E1.3 | 📋 Określenie budżetu IT na 2026-2027 | 2026-02-01 | 2026-02-28 | ❌ | Zarząd + PM | Szkolenia i konsultacje |
 | E1.4 | 📋 Wybór dostawcy PMS/booking engine i wstępny brief nowej strony www | 2026-02-15 | 2026-03-31 | ❌ | PM + IT + Marketing | PMS + booking engine + channel manager |
 
-![alt text](https://file%2B.vscode-resource.vscode-cdn.net/Users/mateuszdolega/Repos/private/BE/harmonogram/gantt_chart_digitalizacja.png?version%3D1765277703378)**Zależności:**
+**Zależności:**
 - **E1.2** zależy od: E1.1
 - **E1.3** zależy od: E1.2
 - **E1.4** zależy od: E1.2

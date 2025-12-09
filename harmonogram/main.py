@@ -541,6 +541,340 @@ def generate_phase_gantt(tasks, filename_prefix="phases"):
     
     return fig, ax
 
+def generate_roadmap(tasks, filename_prefix="roadmap"):
+    """
+    Generuje roadmapę rozwoju infrastruktury cyfrowej w formie wizualnego diagramu
+    """
+    # Definicja poziomów roadmapy zgodnie z tabelą
+    roadmap_levels = [
+        {
+            'level': 0,
+            'title': 'Stan wyjściowy',
+            'horizon': 'do końca 2025',
+            'description': 'Brak PMS/CRM, tylko OTA + Excel, brak integracji, brak formalnych polityk bezpieczeństwa i backupu.',
+            'actions': 'Inwentaryzacja istniejących narzędzi, ocena łącza internetowego i sprzętu, identyfikacja głównych luk infrastrukturalnych (przygotowanie do startu programu od Q1 2026).',
+            'color': '#E0E0E0',
+            'tasks': [],
+            'start_date': datetime(2025, 10, 1),
+            'end_date': datetime(2025, 12, 31)
+        },
+        {
+            'level': 1,
+            'title': 'Podstawowa infrastruktura rezerwacyjna',
+            'horizon': 'Q1–Q4 2026',
+            'description': 'Nowa strona www, podstawowy PMS z kalendarzem i channel managerem, zintegrowany z OTA; pełny proces rezerwacji online z płatnościami (jeszcze bez CRM i zaawansowanej analityki).',
+            'actions': 'E1.1–E1.4, E2.1–E2.5, E3.1–E3.5: • formalne uruchomienie programu i budżetu IT • wybór i wdrożenie PMS/booking engine • projekt i wdrożenie nowej strony www + identyfikacja • uruchomienie płatności online i integracji z OTA • testy i start produkcyjny systemu rezerwacji.',
+            'color': '#FF6B6B',
+            'tasks': ['E1', 'E2', 'E3'],
+            'start_date': datetime(2026, 1, 1),
+            'end_date': datetime(2027, 1, 15)
+        },
+        {
+            'level': 2,
+            'title': 'Infrastruktura relacyjna',
+            'horizon': 'Q1–Q2 2027',
+            'description': 'PMS zintegrowany z booking engine i CRM; uruchomione płatności online, działający program lojalnościowy oraz podstawowe raporty operacyjne (obłożenie, kanały sprzedaży, przychody).',
+            'actions': 'E4.1–E4.4: • wdrożenie CRM • import dotychczasowych kontaktów • uruchomienie programu lojalnościowego (kody rabatowe) • konfiguracja automatycznych e-maili przed/po pobycie oraz podstawowych raportów operacyjnych.',
+            'color': '#96CEB4',
+            'tasks': ['E4'],
+            'start_date': datetime(2027, 1, 16),
+            'end_date': datetime(2027, 6, 15)
+        },
+        {
+            'level': 3,
+            'title': 'Infrastruktura analityczna i rozwojowa',
+            'horizon': 'Q2–Q4 2027',
+            'description': 'Dashboardy zarządcze (KPI), dynamic pricing, częściowa automatyzacja marketingu (segmentacja, kampanie), ugruntowane procedury bezpieczeństwa i backupu.',
+            'actions': 'E5.1–E5.3, E6.1–E6.3: • konfiguracja zaawansowanych raportów i dashboardów (m.in. obłożenie, ADR, RevPAR, udział kanałów) • wdrożenie zasad dynamicznego ustalania cen • szkolenia z analityki i pracy na danych • przegląd KPI z IT BSC, korekta procesów • decyzje o dalszych inwestycjach (chatbot, kolejne integracje, dodatkowe SaaS).',
+            'color': '#FECA57',
+            'tasks': ['E5', 'E6'],
+            'start_date': datetime(2027, 6, 16),
+            'end_date': datetime(2028, 2, 15)
+        }
+    ]
+    
+    # Tworzenie wykresu roadmapy
+    fig, ax = plt.subplots(figsize=(16, 12))
+    
+    # Pozycje na osi Y dla poziomów (odwrócone - poziom 0 na dole)
+    y_positions = list(reversed(range(len(roadmap_levels))))
+    level_height = 0.8
+    
+    # Kolory dla strumieni zadań
+    stream_colors = {
+        'E1': '#FF6B6B',
+        'E2': '#4ECDC4', 
+        'E3': '#45B7D1',
+        'E4': '#96CEB4',
+        'E5': '#FECA57',
+        'E6': '#DDA0DD'
+    }
+    
+    for i, level in enumerate(roadmap_levels):
+        y_pos = y_positions[i]
+        
+        # Konwersja dat na numery
+        start_num = mdates.date2num(level['start_date'])
+        end_num = mdates.date2num(level['end_date'])
+        duration_num = end_num - start_num
+        
+        # Główny pasek poziomu
+        ax.barh(
+            y=y_pos,
+            width=duration_num,
+            left=start_num,
+            height=level_height,
+            align="center",
+            alpha=0.3,
+            color=level['color'],
+            edgecolor="black",
+            linewidth=2,
+        )
+        
+        # Dodanie strumieni zadań na pasku
+        if level['tasks']:
+            stream_width = duration_num / len(level['tasks'])
+            for j, task_phase in enumerate(level['tasks']):
+                stream_start = start_num + j * stream_width
+                ax.barh(
+                    y=y_pos,
+                    width=stream_width * 0.8,  # Lekko węższe dla lepszej wizualizacji
+                    left=stream_start + stream_width * 0.1,
+                    height=level_height * 0.4,
+                    align="center",
+                    alpha=0.8,
+                    color=stream_colors.get(task_phase, '#CCCCCC'),
+                    edgecolor="black",
+                    linewidth=1,
+                )
+                
+                # Etykieta zadania
+                ax.text(stream_start + stream_width/2, y_pos, task_phase, 
+                       ha='center', va='center', fontweight='bold', fontsize=10, color='white',
+                       bbox=dict(boxstyle='round,pad=0.2', facecolor='black', alpha=0.7))
+        
+        # Tytuł poziomu po lewej stronie
+        ax.text(start_num - 30, y_pos, f"Poziom {level['level']}\n{level['title']}", 
+               ha='right', va='center', fontweight='bold', fontsize=11,
+               bbox=dict(boxstyle='round,pad=0.5', facecolor=level['color'], alpha=0.8))
+        
+        # Horyzont czasowy na pasku
+        mid_point = start_num + duration_num / 2
+        ax.text(mid_point, y_pos + level_height/3, level['horizon'], 
+               ha='center', va='center', fontweight='bold', fontsize=10,
+               bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.9))
+    
+    # Strzałki pokazujące przepływ między poziomami
+    for i in range(len(roadmap_levels) - 1):
+        current_level = roadmap_levels[i]
+        next_level = roadmap_levels[i + 1]
+        
+        current_y = y_positions[i]
+        next_y = y_positions[i + 1]
+        
+        current_end = mdates.date2num(current_level['end_date'])
+        next_start = mdates.date2num(next_level['start_date'])
+        
+        # Strzałka między poziomami
+        ax.annotate('', xy=(next_start, next_y), xytext=(current_end, current_y),
+                   arrowprops=dict(arrowstyle='->', lw=3, color='darkblue', alpha=0.7))
+    
+    # Ustawienia osi Y
+    ax.set_yticks(y_positions)
+    ax.set_yticklabels([f"Poziom {level['level']}" for level in reversed(roadmap_levels)], fontsize=12)
+    
+    # Formatowanie osi X (daty)
+    ax.xaxis_date()
+    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=6))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
+    ax.xaxis.set_minor_locator(mdates.MonthLocator(interval=3))
+    
+    plt.xticks(rotation=45, fontsize=10)
+    ax.tick_params(axis='y', labelsize=10)
+    
+    ax.set_xlabel("Czas", fontsize=12, fontweight='bold')
+    ax.set_title("Roadmapa Rozwoju Infrastruktury Cyfrowej", fontsize=16, fontweight='bold', pad=20)
+    
+    # Legenda dla strumieni zadań
+    legend_elements = []
+    for task_phase, color in stream_colors.items():
+        legend_elements.append(plt.Rectangle((0,0),1,1, facecolor=color, alpha=0.8, label=f"Etap {task_phase}"))
+    
+    ax.legend(handles=legend_elements, loc='center left', bbox_to_anchor=(1, 0.5), fontsize=9, 
+              title="Strumienie zadań", title_fontsize=10)
+    
+    # Siatka
+    ax.grid(axis="x", linestyle="--", alpha=0.3)
+    ax.grid(axis="y", linestyle=":", alpha=0.2)
+    
+    # Ustawienie limitów osi
+    ax.set_xlim(mdates.date2num(datetime(2025, 9, 1)), mdates.date2num(datetime(2028, 3, 31)))
+    
+    plt.tight_layout()
+    
+    # Zapisanie do plików
+    plt.savefig(f"{filename_prefix}_diagram.png", dpi=300, bbox_inches="tight")
+    plt.savefig(f"{filename_prefix}_diagram.pdf", bbox_inches="tight")
+    
+    return fig, ax, roadmap_levels
+
+def generate_roadmap_markdown(roadmap_levels, filename="roadmap_struktura.md"):
+    """
+    Generuje szczegółową dokumentację roadmapy w formacie markdown
+    """
+    markdown = "# Roadmapa Rozwoju Infrastruktury Cyfrowej\n\n"
+    markdown += "## Przegląd strategii digitalizacji 2025-2028\n\n"
+    markdown += "Roadmapa przedstawia czterostopniowy rozwój infrastruktury cyfrowej hotelu, "
+    markdown += "od stanu początkowego do pełnej automatyzacji procesów biznesowych.\n\n"
+    markdown += "---\n\n"
+    
+    # Tabela główna roadmapy
+    markdown += "## Tabela 9. Roadmapa rozwoju infrastruktury cyfrowej\n\n"
+    markdown += "| Poziom | Horyzont | Opis infrastruktury | Kluczowe działania |\n"
+    markdown += "|--------|----------|---------------------|--------------------|\n"
+    
+    for level in roadmap_levels:
+        level_title = f"**{level['level']} – {level['title']}**"
+        horizon = f"**{level['horizon']}**"
+        description = level['description']
+        actions = level['actions']
+        
+        markdown += f"| {level_title} | {horizon} | {description} | {actions} |\n"
+    
+    markdown += "\n---\n\n"
+    
+    # Szczegółowy opis każdego poziomu
+    markdown += "## Szczegółowy opis poziomów roadmapy\n\n"
+    
+    for level in roadmap_levels:
+        markdown += f"### Poziom {level['level']}: {level['title']}\n\n"
+        markdown += f"**Horyzont czasowy:** {level['horizon']}\n\n"
+        markdown += f"**Daty realizacji:** {level['start_date'].strftime('%Y-%m-%d')} - {level['end_date'].strftime('%Y-%m-%d')}\n\n"
+        
+        markdown += "**Opis infrastruktury:**\n"
+        markdown += f"{level['description']}\n\n"
+        
+        markdown += "**Kluczowe działania:**\n"
+        markdown += f"{level['actions']}\n\n"
+        
+        if level['tasks']:
+            markdown += "**Powiązane etapy:**\n"
+            for task in level['tasks']:
+                markdown += f"- Etap {task}\n"
+            markdown += "\n"
+        
+        markdown += "---\n\n"
+    
+    # Podsumowanie korzyści i wskaźników sukcesu
+    markdown += "## Korzyści i wskaźniki sukcesu\n\n"
+    
+    success_metrics = [
+        {
+            'level': 0,
+            'metrics': ['Kompletna inwentaryzacja obecnych systemów', 'Zidentyfikowane luki w infrastrukturze', 'Przygotowany budżet IT na 2026-2027']
+        },
+        {
+            'level': 1, 
+            'metrics': ['100% rezerwacji online', 'Integracja z wszystkimi głównymi OTA', 'Redukcja czasu obsługi rezerwacji o 50%', 'Zwiększenie konwersji na stronie o 25%']
+        },
+        {
+            'level': 2,
+            'metrics': ['Automatyzacja 80% komunikacji z gośćmi', 'Wzrost powtarzalnych rezerwacji o 30%', 'Redukcja kosztów marketingu o 20%', 'Centralizacja wszystkich danych gości']
+        },
+        {
+            'level': 3,
+            'metrics': ['Optymalizacja cen w czasie rzeczywistym', 'Wzrost RevPAR o 15-20%', 'Automatyzacja raportowania dla zarządu', 'Pełna kontrola nad procesami biznesowymi']
+        }
+    ]
+    
+    for metric_set in success_metrics:
+        level_info = next(l for l in roadmap_levels if l['level'] == metric_set['level'])
+        markdown += f"### Poziom {metric_set['level']}: {level_info['title']}\n\n"
+        
+        for metric in metric_set['metrics']:
+            markdown += f"- ✅ {metric}\n"
+        markdown += "\n"
+    
+    markdown += "---\n\n"
+    
+    # Analiza ryzyk i mitygacji
+    markdown += "## Analiza ryzyk i działania mitygujące\n\n"
+    
+    risks = [
+        {
+            'risk': 'Opóźnienia w dostawie systemów PMS',
+            'probability': 'Średnie',
+            'impact': 'Wysokie',
+            'mitigation': 'Wybór sprawdzonego dostawcy, buffer czasowy 2-4 tygodnie, plan B z alternatywnym dostawcą'
+        },
+        {
+            'risk': 'Problemy z integracją systemów',
+            'probability': 'Średnie', 
+            'impact': 'Średnie',
+            'mitigation': 'Testy integracyjne na środowisku testowym, wsparcie techniczne dostawców, dokumentacja API'
+        },
+        {
+            'risk': 'Opór zespołu wobec nowych technologii',
+            'probability': 'Niskie',
+            'impact': 'Średnie', 
+            'mitigation': 'Program szkoleń, zaangażowanie team leaderów, stopniowe wdrażanie funkcjonalności'
+        },
+        {
+            'risk': 'Przekroczenie budżetu IT',
+            'probability': 'Niskie',
+            'impact': 'Wysokie',
+            'mitigation': 'Szczegółowe planowanie budżetowe, monitoring kosztów miesięcznych, elastyczne podejście do zakresu'
+        }
+    ]
+    
+    markdown += "| Ryzyko | Prawdopodobieństwo | Wpływ | Działania mitygujące |\n"
+    markdown += "|--------|-------------------|-------|---------------------|\n"
+    
+    for risk in risks:
+        markdown += f"| {risk['risk']} | {risk['probability']} | {risk['impact']} | {risk['mitigation']} |\n"
+    
+    markdown += "\n---\n\n"
+    
+    # Budżet i zasoby
+    markdown += "## Szacunkowy budżet i zasoby\n\n"
+    
+    budget_items = [
+        {'category': 'PMS + booking engine + channel manager', 'annual_cost': '15,000 - 25,000 PLN', 'level': '1-3'},
+        {'category': 'CRM + narzędzie e-mail marketingu', 'annual_cost': '8,000 - 15,000 PLN', 'level': '2-3'},
+        {'category': 'Nowa strona www + identyfikacja', 'annual_cost': '20,000 - 40,000 PLN', 'level': '1'},
+        {'category': 'Szkolenia i konsultacje', 'annual_cost': '10,000 - 20,000 PLN', 'level': '1-3'},
+        {'category': 'Sprzęt / Rozwiązania SaaS (wg potrzeb)', 'annual_cost': '5,000 - 15,000 PLN', 'level': '3'}
+    ]
+    
+    markdown += "| Kategoria | Szacunkowy koszt roczny | Poziomy roadmapy |\n"
+    markdown += "|-----------|-------------------------|------------------|\n"
+    
+    total_min = 0
+    total_max = 0
+    
+    for item in budget_items:
+        markdown += f"| {item['category']} | {item['annual_cost']} | {item['level']} |\n"
+        # Prosta kalkulacja sumy (zakładając format "X,XXX - Y,YYY PLN")
+        costs = item['annual_cost'].replace(' PLN', '').replace(',', '').split(' - ')
+        if len(costs) == 2:
+            total_min += int(costs[0])
+            total_max += int(costs[1])
+    
+    markdown += f"| **RAZEM** | **{total_min:,} - {total_max:,} PLN** | **Wszystkie** |\n"
+    markdown += "\n"
+    
+    markdown += "**Uwagi dotyczące budżetu:**\n"
+    markdown += "- Koszty przedstawiono jako szacunki roczne w pełni operacyjnych systemów\n"
+    markdown += "- Koszty wdrożenia (jednorazowe) mogą wynieść dodatkowo 20-50% kosztów rocznych\n"
+    markdown += "- Ostateczne koszty zależą od wybranego dostawcy i zakresu funkcjonalności\n"
+    markdown += "- Zaleca się utworzenie rezerwy budżetowej na poziomie 15-20% całkowitych kosztów\n\n"
+    
+    # Zapisanie do pliku
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(markdown)
+    
+    return markdown
+
 # Załóżmy, że lista 'tasks' jest zaimportowana z poprzedniego fragmentu
 
 # 1. Przekształcenie na DataFrame
@@ -727,11 +1061,22 @@ with open("struktura_projektu.md", "w", encoding="utf-8") as f:
 print("\nGenerowanie uproszczonego harmonogramu z etapami...")
 fig_phases, ax_phases = generate_phase_gantt(tasks, "harmonogram_etapy")
 
+# Generowanie roadmapy
+print("\nGenerowanie roadmapy rozwoju infrastruktury...")
+fig_roadmap, ax_roadmap, roadmap_levels = generate_roadmap(tasks, "roadmap_infrastruktura")
+
+# Generowanie dokumentacji roadmapy
+print("Generowanie dokumentacji roadmapy...")
+roadmap_markdown = generate_roadmap_markdown(roadmap_levels, "roadmap_struktura.md")
+
 print("Wykres Gantta został zapisany do plików:")
 print("- gantt_chart_digitalizacja.png (obraz PNG - szczegółowy)")
 print("- gantt_chart_digitalizacja.pdf (plik PDF - szczegółowy)")
 print("- harmonogram_etapy_gantt.png (obraz PNG - tylko etapy)")
 print("- harmonogram_etapy_gantt.pdf (plik PDF - tylko etapy)")
+print("- roadmap_infrastruktura_diagram.png (obraz PNG - roadmapa)")
+print("- roadmap_infrastruktura_diagram.pdf (plik PDF - roadmapa)")
 print("- struktura_projektu.md (struktura w markdown)")
+print("- roadmap_struktura.md (szczegółowa dokumentacja roadmapy)")
 
 # plt.show()
