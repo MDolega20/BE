@@ -1057,25 +1057,25 @@ def generate_detailed_schedule(tasks, filename_prefix="detailed_schedule"):
     ax3.axis('off')
     
     # Analiza zasobów
-    resources_text = "👥 ZASOBY I ODPOWIEDZIALNOŚCI\n\n"
-    all_resources = set()
-    for task in tasks:
-        if task['resource']:
-            task_resources = [r.strip() for r in task['resource'].split('+')]
-            all_resources.update(task_resources)
+    # resources_text = "👥 ZASOBY I ODPOWIEDZIALNOŚCI\n\n"
+    # all_resources = set()
+    # for task in tasks:
+    #     if task['resource']:
+    #         task_resources = [r.strip() for r in task['resource'].split('+')]
+    #         all_resources.update(task_resources)
     
-    for resource in sorted(all_resources):
-        resource_tasks = df[df['resource'].str.contains(resource, na=False)]
-        resources_text += f"• {resource}:\n"
-        resources_text += f"  {len(resource_tasks)} zadań\n"
-        if len(resource_tasks) > 0:
-            total_days = resource_tasks['duration_days'].sum()
-            resources_text += f"  {total_days} dni roboczych\n"
-        resources_text += "\n"
+    # for resource in sorted(all_resources):
+    #     resource_tasks = df[df['resource'].str.contains(resource, na=False)]
+    #     resources_text += f"• {resource}:\n"
+    #     resources_text += f"  {len(resource_tasks)} zadań\n"
+    #     if len(resource_tasks) > 0:
+    #         total_days = resource_tasks['duration_days'].sum()
+    #         resources_text += f"  {total_days} dni roboczych\n"
+    #     resources_text += "\n"
     
-    ax3.text(0.05, 0.95, resources_text, transform=ax3.transAxes, fontsize=8,
-            verticalalignment='top', fontfamily='monospace',
-            bbox=dict(boxstyle='round,pad=0.5', facecolor='lightblue', alpha=0.8))
+    # ax3.text(0.05, 0.95, resources_text, transform=ax3.transAxes, fontsize=8,
+    #         verticalalignment='top', fontfamily='monospace',
+    #         bbox=dict(boxstyle='round,pad=0.5', facecolor='lightblue', alpha=0.8))
     
     # Timeline z kamieniami milowymi (ax4)
     ax4 = plt.subplot2grid((4, 3), (3, 0), colspan=3)
