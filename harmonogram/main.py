@@ -596,8 +596,8 @@ def generate_roadmap(tasks, filename_prefix="roadmap"):
     # Tworzenie wykresu roadmapy
     fig, ax = plt.subplots(figsize=(16, 12))
     
-    # Pozycje na osi Y dla poziomów (odwrócone - poziom 0 na dole)
-    y_positions = list(reversed(range(len(roadmap_levels))))
+    # Pozycje na osi Y dla poziomów (poziom 0 na górze)
+    y_positions = list(range(len(roadmap_levels)))
     level_height = 0.8
     
     # Kolory dla strumieni zadań
@@ -706,6 +706,9 @@ def generate_roadmap(tasks, filename_prefix="roadmap"):
     # Siatka
     ax.grid(axis="x", linestyle="--", alpha=0.3)
     ax.grid(axis="y", linestyle=":", alpha=0.2)
+    
+    # Odwrócenie osi Y żeby poziom 0 był na dole
+    ax.invert_yaxis()
     
     # Ustawienie limitów osi
     ax.set_xlim(mdates.date2num(datetime(2025, 9, 1)), mdates.date2num(datetime(2028, 3, 31)))
