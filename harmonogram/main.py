@@ -875,6 +875,561 @@ def generate_roadmap_markdown(roadmap_levels, filename="roadmap_struktura.md"):
     
     return markdown
 
+def generate_detailed_schedule(tasks, filename_prefix="detailed_schedule"):
+    """
+    Generuje bardzo szczegółowy harmonogram z pełnym podziałem na zadania
+    """
+    df = pd.DataFrame(tasks)
+    
+    # Sortowanie według faz i dat
+    phase_order = {
+        "E1 - Start i przygotowanie": 1,
+        "E2 - Strona www + identyfikacja": 2, 
+        "E3 - System rezerwacji i płatności": 3,
+        "E4 - CRM i lojalność": 4,
+        "E5 - Analityka i dynamic pricing": 5,
+        "E6 - Optymalizacja i rozwój": 6
+    }
+    df["phase_order"] = df["phase"].map(phase_order)
+    df = df.sort_values(["phase_order", "start"]).reset_index(drop=True)
+    
+    # Obliczenie dodatkowych metryk
+    df["duration_days"] = (df["end"] - df["start"]).dt.days + 1
+    df["start_week"] = df["start"].dt.isocalendar().week
+    df["end_week"] = df["end"].dt.isocalendar().week
+    df["quarter"] = df["start"].dt.quarter
+    df["year"] = df["start"].dt.year
+    
+    # Kolory dla etapów
+    phase_colors = {
+        "E1 - Start i przygotowanie": "#FF6B6B",
+        "E2 - Strona www + identyfikacja": "#4ECDC4",
+        "E3 - System rezerwacji i płatności": "#45B7D1",
+        "E4 - CRM i lojalność": "#96CEB4",
+        "E5 - Analityka i dynamic pricing": "#FECA57",
+        "E6 - Optymalizacja i rozwój": "#DDA0DD"
+    }
+    
+    # Tworzenie bardzo szczegółowego wykresu
+    fig = plt.figure(figsize=(20, 16))
+    
+    # Główny wykres Gantta (zajmuje większą część)
+    ax1 = plt.subplot2grid((4, 3), (0, 0), colspan=2, rowspan=3)
+    
+    # Pozycje na osi Y
+    y_positions = range(len(df))
+    
+    for i, row in df.iterrows():
+        start_num = mdates.date2num(row["start"])
+        end_num = mdates.date2num(row["end"])
+        duration_num = end_num - start_num
+        
+        # Kolor dla danego etapu
+        color = phase_colors.get(row["phase"], "#CCCCCC")
+        
+        # Główny pasek zadania
+        ax1.barh(
+            y=i,
+            width=duration_num,
+            left=start_num,
+            height=0.6,
+            align="center",
+            alpha=0.7,
+            color=color,
+            edgecolor="black",
+            linewidth=1,
+        )
+        
+        # Pasek progresu
+        if row["progress"] > 0:
+            progress_width = duration_num * (row["progress"] / 100.0)
+            ax1.barh(
+                y=i,
+                width=progress_width,
+                left=start_num,
+                height=0.3,
+                align="center",
+                color="darkgreen",
+                alpha=0.8,
+                zorder=3,
+            )
+        
+        # Oznaczenie kamieni milowych
+        if row["milestone"]:
+            ax1.barh(
+                y=i,
+                width=duration_num,
+                left=start_num,
+                height=0.6,
+                align="center",
+                alpha=0,
+                edgecolor="red",
+                linewidth=4,
+                zorder=4,
+            )
+            # Dodanie ikony kamienia milowego
+            ax1.scatter(end_num, i, s=200, c='red', marker='D', zorder=5, edgecolor='black')
+        
+        # Etykieta z czasem trwania na pasku
+        mid_point = start_num + duration_num / 2
+        if duration_num > 20:  # Tylko dla dłuższych zadań
+            ax1.text(mid_point, i, f"{row['duration_days']}d", 
+                    ha='center', va='center', fontweight='bold', fontsize=8, color='white',
+                    bbox=dict(boxstyle='round,pad=0.2', facecolor='black', alpha=0.7))
+    
+    # Linie podziału między etapami
+    current_phase = None
+    for i, row in df.iterrows():
+        if current_phase != row['phase']:
+            if i > 0:  # Nie rysuj linii przed pierwszym etapem
+                ax1.axhline(y=i - 0.5, color='red', linestyle='--', linewidth=2, alpha=0.8)
+            current_phase = row['phase']
+    
+    # Pionowe linie dla granic etapów z etykietami
+    for phase in df['phase'].unique():
+        phase_tasks = df[df['phase'] == phase]
+        phase_start = phase_tasks['start'].min()
+        phase_end = phase_tasks['end'].max()
+        
+        phase_start_num = mdates.date2num(phase_start)
+        phase_end_num = mdates.date2num(phase_end)
+        
+        ax1.axvline(x=phase_start_num, color='gray', linestyle='--', linewidth=1, alpha=0.5)
+        ax1.axvline(x=phase_end_num, color='gray', linestyle='--', linewidth=1, alpha=0.5)
+        
+        # Etykieta etapu na górze
+        phase_label = phase.split(' - ')[0]
+        ax1.text(phase_start_num + (phase_end_num - phase_start_num) / 2, 
+                len(df) - 0.5, phase_label, 
+                fontsize=12, fontweight='bold', ha='center', va='bottom',
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='lightblue', alpha=0.8))
+    
+    # Ustawienia głównego wykresu
+    ax1.set_yticks(list(y_positions))
+    task_labels = []
+    for _, task in df.iterrows():
+        milestone_marker = "🎯" if task['milestone'] else ""
+        progress_marker = f"({task['progress']}%)" if task['progress'] > 0 else ""
+        task_labels.append(f"{task['id']} {milestone_marker}\n{task['name'][:40]}{'...' if len(task['name']) > 40 else ''}\n{progress_marker}")
+    
+    ax1.set_yticklabels(task_labels, fontsize=8)
+    ax1.xaxis_date()
+    ax1.xaxis.set_major_locator(mdates.WeekdayLocator(interval=2))
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    ax1.xaxis.set_minor_locator(mdates.WeekdayLocator())
+    
+    plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45, fontsize=9)
+    ax1.tick_params(axis='y', labelsize=8)
+    ax1.set_xlabel("Czas", fontsize=12, fontweight='bold')
+    ax1.set_title("Szczegółowy Harmonogram Projektu", fontsize=16, fontweight='bold', pad=20)
+    ax1.grid(axis="x", linestyle="--", alpha=0.3)
+    ax1.grid(axis="y", linestyle=":", alpha=0.2)
+    
+    # Panel informacyjny po prawej (ax2)
+    ax2 = plt.subplot2grid((4, 3), (0, 2), rowspan=2)
+    ax2.axis('off')
+    
+    # Statystyki projektu
+    stats_text = "📊 STATYSTYKI PROJEKTU\n\n"
+    stats_text += f"Całkowity czas: {(df['end'].max() - df['start'].min()).days} dni\n"
+    stats_text += f"Liczba zadań: {len(df)}\n"
+    stats_text += f"Kamienie milowe: {df['milestone'].sum()}\n"
+    stats_text += f"Liczba etapów: {df['phase'].nunique()}\n\n"
+    
+    # Statystyki według etapów
+    stats_text += "📈 WEDŁUG ETAPÓW:\n"
+    for phase in df['phase'].unique():
+        phase_tasks = df[df['phase'] == phase]
+        phase_duration = (phase_tasks['end'].max() - phase_tasks['start'].min()).days
+        stats_text += f"• {phase.split(' - ')[0]}: {len(phase_tasks)} zadań, {phase_duration} dni\n"
+    
+    stats_text += "\n🎯 KAMIENIE MILOWE:\n"
+    milestones = df[df['milestone'] == True].sort_values('end')
+    for _, milestone in milestones.iterrows():
+        stats_text += f"• {milestone['end'].strftime('%Y-%m-%d')}: {milestone['id']}\n"
+    
+    ax2.text(0.05, 0.95, stats_text, transform=ax2.transAxes, fontsize=9,
+            verticalalignment='top', fontfamily='monospace',
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='lightgray', alpha=0.8))
+    
+    # Panel zasobów (ax3)
+    ax3 = plt.subplot2grid((4, 3), (2, 2), rowspan=2)
+    ax3.axis('off')
+    
+    # Analiza zasobów
+    resources_text = "👥 ZASOBY I ODPOWIEDZIALNOŚCI\n\n"
+    all_resources = set()
+    for task in tasks:
+        if task['resource']:
+            task_resources = [r.strip() for r in task['resource'].split('+')]
+            all_resources.update(task_resources)
+    
+    for resource in sorted(all_resources):
+        resource_tasks = df[df['resource'].str.contains(resource, na=False)]
+        resources_text += f"• {resource}:\n"
+        resources_text += f"  {len(resource_tasks)} zadań\n"
+        if len(resource_tasks) > 0:
+            total_days = resource_tasks['duration_days'].sum()
+            resources_text += f"  {total_days} dni roboczych\n"
+        resources_text += "\n"
+    
+    ax3.text(0.05, 0.95, resources_text, transform=ax3.transAxes, fontsize=8,
+            verticalalignment='top', fontfamily='monospace',
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='lightblue', alpha=0.8))
+    
+    # Timeline z kamieniami milowymi (ax4)
+    ax4 = plt.subplot2grid((4, 3), (3, 0), colspan=3)
+    
+    # Tworzenie osi czasowej
+    project_start = df['start'].min()
+    project_end = df['end'].max()
+    
+    # Linia czasowa
+    ax4.plot([mdates.date2num(project_start), mdates.date2num(project_end)], [0, 0], 
+            'k-', linewidth=3, alpha=0.7)
+    
+    # Kamienie milowe na linii czasowej
+    milestones = df[df['milestone'] == True].sort_values('end')
+    for i, (_, milestone) in enumerate(milestones.iterrows()):
+        date_num = mdates.date2num(milestone['end'])
+        ax4.scatter(date_num, 0, s=300, c='red', marker='D', zorder=5, edgecolor='black')
+        
+        # Etykieta kamienia milowego
+        y_offset = 0.3 if i % 2 == 0 else -0.3
+        ax4.annotate(f"{milestone['id']}\n{milestone['end'].strftime('%Y-%m-%d')}", 
+                    xy=(date_num, 0), xytext=(date_num, y_offset),
+                    ha='center', va='center' if y_offset > 0 else 'center',
+                    fontsize=8, fontweight='bold',
+                    bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.8),
+                    arrowprops=dict(arrowstyle='->', lw=1))
+    
+    # Oznaczenia etapów na timeline
+    for phase in df['phase'].unique():
+        phase_tasks = df[df['phase'] == phase]
+        phase_start = mdates.date2num(phase_tasks['start'].min())
+        phase_end = mdates.date2num(phase_tasks['end'].max())
+        
+        color = phase_colors.get(phase, "#CCCCCC")
+        ax4.axvspan(phase_start, phase_end, alpha=0.2, color=color, zorder=1)
+        
+        # Etykieta etapu
+        phase_mid = phase_start + (phase_end - phase_start) / 2
+        ax4.text(phase_mid, -0.8, phase.split(' - ')[0], 
+                ha='center', va='center', fontsize=10, fontweight='bold',
+                bbox=dict(boxstyle='round,pad=0.2', facecolor=color, alpha=0.8))
+    
+    ax4.set_xlim(mdates.date2num(project_start) - 10, mdates.date2num(project_end) + 10)
+    ax4.set_ylim(-1, 1)
+    ax4.xaxis_date()
+    ax4.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
+    ax4.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
+    plt.setp(ax4.xaxis.get_majorticklabels(), rotation=45, fontsize=9)
+    ax4.set_ylabel("")
+    ax4.set_title("Timeline kamieni milowych", fontsize=12, fontweight='bold')
+    ax4.grid(axis="x", linestyle="--", alpha=0.3)
+    ax4.set_yticks([])
+    
+    # Legenda na głównym wykresie
+    legend_elements = []
+    for phase, color in phase_colors.items():
+        short_name = phase.split(' - ')[1]
+        legend_elements.append(plt.Rectangle((0,0),1,1, facecolor=color, alpha=0.7, label=short_name))
+    
+    # Dodanie elementów legendy dla specjalnych oznaczeń
+    legend_elements.append(plt.Rectangle((0,0),1,1, facecolor='red', alpha=0.7, label='Kamień milowy'))
+    legend_elements.append(plt.Rectangle((0,0),1,1, facecolor='darkgreen', alpha=0.8, label='Postęp'))
+    
+    ax1.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0, 1), fontsize=9, 
+              title="Legenda", title_fontsize=10)
+    
+    plt.tight_layout()
+    
+    # Zapisanie do plików
+    plt.savefig(f"{filename_prefix}.png", dpi=300, bbox_inches="tight")
+    plt.savefig(f"{filename_prefix}.pdf", bbox_inches="tight")
+    
+    return fig, (ax1, ax2, ax3, ax4)
+
+def generate_detailed_schedule_report(tasks, filename="detailed_schedule_report.md"):
+    """
+    Generuje wyczerpujący raport szczegółowego harmonogramu
+    """
+    df = pd.DataFrame(tasks)
+    
+    # Sortowanie i obliczenia
+    phase_order = {
+        "E1 - Start i przygotowanie": 1,
+        "E2 - Strona www + identyfikacja": 2, 
+        "E3 - System rezerwacji i płatności": 3,
+        "E4 - CRM i lojalność": 4,
+        "E5 - Analityka i dynamic pricing": 5,
+        "E6 - Optymalizacja i rozwój": 6
+    }
+    df["phase_order"] = df["phase"].map(phase_order)
+    df = df.sort_values(["phase_order", "start"]).reset_index(drop=True)
+    df["duration_days"] = (df["end"] - df["start"]).dt.days + 1
+    df["quarter"] = df["start"].dt.quarter
+    df["year"] = df["start"].dt.year
+    df["start_weekday"] = df["start"].dt.day_name()
+    df["end_weekday"] = df["end"].dt.day_name()
+    
+    markdown = "# Szczegółowy Harmonogram Projektu - Raport Wyczerpujący\n\n"
+    markdown += f"**Data wygenerowania:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    markdown += f"**Okres realizacji:** {df['start'].min().strftime('%Y-%m-%d')} - {df['end'].max().strftime('%Y-%m-%d')}\n"
+    markdown += f"**Całkowity czas projektu:** {(df['end'].max() - df['start'].min()).days} dni\n"
+    markdown += f"**Liczba zadań:** {len(df)}\n"
+    markdown += f"**Liczba etapów:** {df['phase'].nunique()}\n"
+    markdown += f"**Kamienie milowe:** {df['milestone'].sum()}\n\n"
+    markdown += "---\n\n"
+    
+    # 1. Szczegółowa analiza według etapów
+    markdown += "## 1. Szczegółowa Analiza Według Etapów\n\n"
+    
+    for phase in df['phase'].unique():
+        phase_tasks = df[df['phase'] == phase].copy()
+        phase_start = phase_tasks['start'].min()
+        phase_end = phase_tasks['end'].max()
+        phase_duration = (phase_end - phase_start).days + 1
+        
+        markdown += f"### {phase}\n\n"
+        markdown += f"**📅 Okres:** {phase_start.strftime('%Y-%m-%d')} - {phase_end.strftime('%Y-%m-%d')} ({phase_duration} dni)\n"
+        markdown += f"**📊 Liczba zadań:** {len(phase_tasks)}\n"
+        markdown += f"**🎯 Kamienie milowe:** {phase_tasks['milestone'].sum()}\n"
+        markdown += f"**⏱️ Łączny czas zadań:** {phase_tasks['duration_days'].sum()} dni\n\n"
+        
+        # Zasoby w etapie
+        all_resources = set()
+        for resource_str in phase_tasks['resource'].dropna():
+            all_resources.update([r.strip() for r in resource_str.split('+')])
+        markdown += f"**👥 Zaangażowane zasoby:** {', '.join(sorted(all_resources))}\n\n"
+        
+        # Obszary kosztów
+        cost_areas = phase_tasks['cost_area'].unique()
+        markdown += f"**💰 Obszary kosztów:** {', '.join(cost_areas)}\n\n"
+        
+        # Szczegółowa tabela zadań
+        markdown += "#### Szczegółowa lista zadań:\n\n"
+        markdown += "| ID | Zadanie | Start | Koniec | Dni | Dzień tyg. start | Dzień tyg. koniec | Kamień milowy | Postęp | Zasoby | Obszar kosztów | Zależności |\n"
+        markdown += "|---|---|---|---|---|---|---|---|---|---|---|---|\n"
+        
+        for _, task in phase_tasks.iterrows():
+            milestone_icon = "🎯" if task['milestone'] else "📋"
+            dependencies = ", ".join(task['dependencies']) if task['dependencies'] else "Brak"
+            
+            markdown += f"| {task['id']} | {milestone_icon} {task['name']} | {task['start'].strftime('%Y-%m-%d')} | {task['end'].strftime('%Y-%m-%d')} | {task['duration_days']} | {task['start_weekday']} | {task['end_weekday']} | {'✅' if task['milestone'] else '❌'} | {task['progress']}% | {task['resource']} | {task['cost_area']} | {dependencies} |\n"
+        
+        markdown += "\n"
+        
+        # Analiza krytyczna dla etapu
+        critical_tasks = phase_tasks[phase_tasks['milestone'] == True]
+        if not critical_tasks.empty:
+            markdown += "#### 🔥 Zadania krytyczne (kamienie milowe):\n\n"
+            for _, task in critical_tasks.iterrows():
+                markdown += f"- **{task['id']}** ({task['end'].strftime('%Y-%m-%d')}): {task['name']}\n"
+            markdown += "\n"
+        
+        markdown += "---\n\n"
+    
+    # 2. Analiza zależności
+    markdown += "## 2. Szczegółowa Analiza Zależności\n\n"
+    
+    # Mapowanie wszystkich zależności
+    dependency_map = {}
+    for _, task in df.iterrows():
+        if task['dependencies']:
+            dependency_map[task['id']] = task['dependencies']
+    
+    if dependency_map:
+        markdown += "### Mapa zależności zadań:\n\n"
+        markdown += "| Zadanie | Zależy od | Opis zależności |\n"
+        markdown += "|---------|-----------|------------------|\n"
+        
+        for task_id, deps in dependency_map.items():
+            task_info = df[df['id'] == task_id].iloc[0]
+            deps_details = []
+            
+            for dep_id in deps:
+                dep_task = df[df['id'] == dep_id]
+                if not dep_task.empty:
+                    dep_info = dep_task.iloc[0]
+                    deps_details.append(f"{dep_id} (koniec: {dep_info['end'].strftime('%Y-%m-%d')})")
+            
+            markdown += f"| {task_id} - {task_info['name'][:50]} | {', '.join(deps)} | {'; '.join(deps_details)} |\n"
+        
+        markdown += "\n"
+        
+        # Analiza ścieżki krytycznej (uproszczona)
+        markdown += "### Analiza ścieżki krytycznej:\n\n"
+        milestones = df[df['milestone'] == True].sort_values('end')
+        markdown += "Kluczowe punkty kontrolne projektu:\n\n"
+        
+        for _, milestone in milestones.iterrows():
+            markdown += f"- **{milestone['end'].strftime('%Y-%m-%d')}**: {milestone['id']} - {milestone['name']}\n"
+        
+        markdown += "\n---\n\n"
+    
+    # 3. Analiza zasobów i obciążenia
+    markdown += "## 3. Szczegółowa Analiza Zasobów i Obciążenia\n\n"
+    
+    # Zebranie wszystkich zasobów
+    all_resources = set()
+    for task in tasks:
+        if task['resource']:
+            task_resources = [r.strip() for r in task['resource'].split('+')]
+            all_resources.update(task_resources)
+    
+    for resource in sorted(all_resources):
+        resource_tasks = df[df['resource'].str.contains(resource, na=False, regex=False)]
+        
+        if not resource_tasks.empty:
+            markdown += f"### 👤 {resource}\n\n"
+            markdown += f"**Liczba zadań:** {len(resource_tasks)}\n"
+            markdown += f"**Łączny czas zaangażowania:** {resource_tasks['duration_days'].sum()} dni\n"
+            markdown += f"**Okres aktywności:** {resource_tasks['start'].min().strftime('%Y-%m-%d')} - {resource_tasks['end'].max().strftime('%Y-%m-%d')}\n\n"
+            
+            # Timeline dla zasobu
+            markdown += "**Timeline zaangażowania:**\n\n"
+            markdown += "| Zadanie | Start | Koniec | Dni | Etap | Typ |\n"
+            markdown += "|---------|-------|--------|-----|------|-----|\n"
+            
+            for _, task in resource_tasks.sort_values('start').iterrows():
+                task_type = "🎯 Kamień milowy" if task['milestone'] else "📋 Standardowe"
+                etap = task['phase'].split(' - ')[0]
+                markdown += f"| {task['id']} - {task['name'][:40]} | {task['start'].strftime('%Y-%m-%d')} | {task['end'].strftime('%Y-%m-%d')} | {task['duration_days']} | {etap} | {task_type} |\n"
+            
+            markdown += "\n"
+            
+            # Analiza obciążenia w czasie
+            markdown += "**Analiza obciążenia:**\n"
+            
+            # Grupowanie według miesięcy
+            resource_tasks_copy = resource_tasks.copy()
+            resource_tasks_copy['month_year'] = resource_tasks_copy['start'].dt.to_period('M')
+            monthly_workload = resource_tasks_copy.groupby('month_year').agg({
+                'duration_days': 'sum',
+                'id': 'count'
+            }).reset_index()
+            
+            if not monthly_workload.empty:
+                markdown += "\n| Miesiąc | Liczba zadań | Łączne dni |\n"
+                markdown += "|---------|--------------|------------|\n"
+                
+                for _, month_data in monthly_workload.iterrows():
+                    markdown += f"| {month_data['month_year']} | {month_data['id']} | {month_data['duration_days']} |\n"
+            
+            markdown += "\n---\n\n"
+    
+    # 4. Analiza obszarów kosztów
+    markdown += "## 4. Szczegółowa Analiza Obszarów Kosztów\n\n"
+    
+    cost_areas = df.groupby('cost_area').agg({
+        'id': 'count',
+        'duration_days': 'sum',
+        'start': 'min',
+        'end': 'max',
+        'milestone': 'sum'
+    }).reset_index()
+    
+    cost_areas.columns = ['Obszar kosztów', 'Liczba zadań', 'Łączne dni', 'Pierwszy start', 'Ostatni koniec', 'Kamienie milowe']
+    
+    markdown += "### Podsumowanie według obszarów kosztów:\n\n"
+    markdown += "| Obszar kosztów | Liczba zadań | Łączne dni | Pierwszy start | Ostatni koniec | Kamienie milowe |\n"
+    markdown += "|----------------|--------------|------------|----------------|----------------|-----------------|\n"
+    
+    for _, area in cost_areas.iterrows():
+        markdown += f"| {area['Obszar kosztów']} | {area['Liczba zadań']} | {area['Łączne dni']} | {area['Pierwszy start'].strftime('%Y-%m-%d')} | {area['Ostatni koniec'].strftime('%Y-%m-%d')} | {area['Kamienie milowe']} |\n"
+    
+    markdown += "\n"
+    
+    # Szczegółowa analiza każdego obszaru kosztów
+    for _, area in cost_areas.iterrows():
+        area_name = area['Obszar kosztów']
+        area_tasks = df[df['cost_area'] == area_name]
+        
+        markdown += f"### 💰 {area_name}\n\n"
+        
+        # Zadania w obszarze kosztów
+        markdown += "**Zadania w tym obszarze:**\n\n"
+        for _, task in area_tasks.iterrows():
+            milestone_marker = " 🎯" if task['milestone'] else ""
+            markdown += f"- **{task['id']}**{milestone_marker}: {task['name']} ({task['start'].strftime('%Y-%m-%d')} - {task['end'].strftime('%Y-%m-%d')}, {task['duration_days']} dni)\n"
+        
+        markdown += "\n"
+    
+    markdown += "---\n\n"
+    
+    # 5. Kalendarz kamieni milowych
+    markdown += "## 5. Kalendarz Kamieni Milowych\n\n"
+    
+    milestones = df[df['milestone'] == True].sort_values('end')
+    
+    markdown += "### Chronologiczna lista kamieni milowych:\n\n"
+    markdown += "| Data | Zadanie | Etap | Opis | Zależności |\n"
+    markdown += "|------|---------|------|------|------------|\n"
+    
+    for _, milestone in milestones.iterrows():
+        etap = milestone['phase'].split(' - ')[0]
+        dependencies = ", ".join(milestone['dependencies']) if milestone['dependencies'] else "Brak"
+        
+        markdown += f"| {milestone['end'].strftime('%Y-%m-%d')} | {milestone['id']} | {etap} | {milestone['name']} | {dependencies} |\n"
+    
+    markdown += "\n"
+    
+    # Analiza odstępów między kamieniami milowymi
+    markdown += "### Analiza odstępów między kamieniami milowymi:\n\n"
+    if len(milestones) > 1:
+        for i in range(len(milestones) - 1):
+            current = milestones.iloc[i]
+            next_milestone = milestones.iloc[i + 1]
+            days_between = (next_milestone['end'] - current['end']).days
+            
+            markdown += f"- **{current['id']}** → **{next_milestone['id']}**: {days_between} dni\n"
+    
+    markdown += "\n---\n\n"
+    
+    # 6. Podsumowanie i rekomendacje
+    markdown += "## 6. Podsumowanie i Rekomendacje\n\n"
+    
+    markdown += "### Kluczowe statystyki:\n\n"
+    markdown += f"- **Najdłuższe zadanie:** {df.loc[df['duration_days'].idxmax(), 'name']} ({df['duration_days'].max()} dni)\n"
+    markdown += f"- **Najkrótsze zadanie:** {df.loc[df['duration_days'].idxmin(), 'name']} ({df['duration_days'].min()} dni)\n"
+    markdown += f"- **Średni czas zadania:** {df['duration_days'].mean():.1f} dni\n"
+    markdown += f"- **Najwięcej zadań w etapie:** {df.groupby('phase').size().max()} zadań\n"
+    markdown += f"- **Najdłuższy etap:** {df.groupby('phase').apply(lambda x: (x['end'].max() - x['start'].min()).days).max()} dni\n\n"
+    
+    # Identyfikacja potencjalnych ryzyk
+    markdown += "### Identyfikacja potencjalnych ryzyk:\n\n"
+    
+    # Zadania z wieloma zależnościami
+    complex_dependencies = df[df['dependencies'].apply(lambda x: len(x) if x else 0) >= 2]
+    if not complex_dependencies.empty:
+        markdown += "**⚠️ Zadania z wieloma zależnościami (wysokie ryzyko opóźnień):**\n"
+        for _, task in complex_dependencies.iterrows():
+            markdown += f"- {task['id']}: {task['name']} (zależy od: {', '.join(task['dependencies'])})\n"
+        markdown += "\n"
+    
+    # Długie zadania (potencjalnie problematyczne)
+    long_tasks = df[df['duration_days'] > 60]  # Zadania dłuższe niż 2 miesiące
+    if not long_tasks.empty:
+        markdown += "**📅 Długie zadania (zalecane dzielenie na mniejsze części):**\n"
+        for _, task in long_tasks.iterrows():
+            markdown += f"- {task['id']}: {task['name']} ({task['duration_days']} dni)\n"
+        markdown += "\n"
+    
+    # Rekomendacje
+    markdown += "### Rekomendacje:\n\n"
+    markdown += "1. **Monitoring kamieni milowych**: Szczególną uwagę należy zwrócić na terminowość realizacji kamieni milowych, gdyż opóźnienia wpływają na cały projekt.\n\n"
+    markdown += "2. **Zarządzanie zasobami**: Należy monitorować obciążenie kluczowych zasobów, szczególnie PM i zespołów IT.\n\n"
+    markdown += "3. **Bufory czasowe**: Zaleca się dodanie buforów czasowych (10-15%) dla zadań krytycznych i tych z wieloma zależnościami.\n\n"
+    markdown += "4. **Regularne przeglądy**: Cotygodniowe przeglądy postępu z aktualizacją harmonogramu według rzeczywistego postępu.\n\n"
+    markdown += "5. **Plan awaryjny**: Przygotowanie alternatywnych scenariuszy dla zadań o wysokim ryzyku.\n\n"
+    
+    # Zapisanie do pliku
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(markdown)
+    
+    return markdown
+
 # Załóżmy, że lista 'tasks' jest zaimportowana z poprzedniego fragmentu
 
 # 1. Przekształcenie na DataFrame
@@ -1069,6 +1624,14 @@ fig_roadmap, ax_roadmap, roadmap_levels = generate_roadmap(tasks, "roadmap_infra
 print("Generowanie dokumentacji roadmapy...")
 roadmap_markdown = generate_roadmap_markdown(roadmap_levels, "roadmap_struktura.md")
 
+# Generowanie szczegółowego harmonogramu
+print("\nGenerowanie bardzo szczegółowego harmonogramu...")
+fig_detailed, ax_detailed = generate_detailed_schedule(tasks, "harmonogram_szczegolowy")
+
+# Generowanie wyczerpującego raportu
+print("Generowanie wyczerpującego raportu harmonogramu...")
+detailed_report = generate_detailed_schedule_report(tasks, "harmonogram_raport_szczegolowy.md")
+
 print("Wykres Gantta został zapisany do plików:")
 print("- gantt_chart_digitalizacja.png (obraz PNG - szczegółowy)")
 print("- gantt_chart_digitalizacja.pdf (plik PDF - szczegółowy)")
@@ -1076,7 +1639,10 @@ print("- harmonogram_etapy_gantt.png (obraz PNG - tylko etapy)")
 print("- harmonogram_etapy_gantt.pdf (plik PDF - tylko etapy)")
 print("- roadmap_infrastruktura_diagram.png (obraz PNG - roadmapa)")
 print("- roadmap_infrastruktura_diagram.pdf (plik PDF - roadmapa)")
+print("- harmonogram_szczegolowy.png (obraz PNG - bardzo szczegółowy)")
+print("- harmonogram_szczegolowy.pdf (plik PDF - bardzo szczegółowy)")
 print("- struktura_projektu.md (struktura w markdown)")
 print("- roadmap_struktura.md (szczegółowa dokumentacja roadmapy)")
+print("- harmonogram_raport_szczegolowy.md (wyczerpujący raport harmonogramu)")
 
 # plt.show()
