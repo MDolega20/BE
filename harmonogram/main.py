@@ -397,6 +397,150 @@ def generate_markdown_structure(tasks):
     
     return markdown
 
+def generate_phase_gantt(tasks, filename_prefix="phases"):
+    """
+    Generuje uproszczony wykres Gantta tylko z etapami (bez poszczególnych zadań)
+    """
+    df = pd.DataFrame(tasks)
+    
+    # Sortowanie według faz
+    phase_order = {
+        "E1 - Start i przygotowanie": 1,
+        "E2 - Strona www + identyfikacja": 2, 
+        "E3 - System rezerwacji i płatności": 3,
+        "E4 - CRM i lojalność": 4,
+        "E5 - Analityka i dynamic pricing": 5,
+        "E6 - Optymalizacja i rozwój": 6
+    }
+    
+    # Agregacja danych według faz
+    phase_data = []
+    for phase in df['phase'].unique():
+        phase_tasks = df[df['phase'] == phase]
+        phase_start = phase_tasks['start'].min()
+        phase_end = phase_tasks['end'].max()
+        
+        # Sprawdzenie czy faza ma kamienie milowe
+        has_milestones = phase_tasks['milestone'].any()
+        
+        # Główne zasoby w fazie
+        all_resources = []
+        for resource_str in phase_tasks['resource'].dropna():
+            all_resources.extend([r.strip() for r in resource_str.split('+')])
+        main_resources = ', '.join(list(set(all_resources))[:3])  # Top 3 zasoby
+        
+        phase_data.append({
+            'phase': phase,
+            'start': phase_start,
+            'end': phase_end,
+            'has_milestones': has_milestones,
+            'resources': main_resources,
+            'order': phase_order.get(phase, 999)
+        })
+    
+    phase_df = pd.DataFrame(phase_data).sort_values('order')
+    
+    # Kolory dla etapów (takie same jak w głównym wykresie)
+    phase_colors = {
+        "E1 - Start i przygotowanie": "#FF6B6B",
+        "E2 - Strona www + identyfikacja": "#4ECDC4",
+        "E3 - System rezerwacji i płatności": "#45B7D1",
+        "E4 - CRM i lojalność": "#96CEB4",
+        "E5 - Analityka i dynamic pricing": "#FECA57",
+        "E6 - Optymalizacja i rozwój": "#DDA0DD"
+    }
+    
+    # Tworzenie wykresu
+    fig, ax = plt.subplots(figsize=(14, 8))
+    
+    # Pozycje na osi Y
+    y_positions = range(len(phase_df))
+    
+    for i, row in phase_df.iterrows():
+        start_num = mdates.date2num(row["start"])
+        end_num = mdates.date2num(row["end"])
+        duration_num = end_num - start_num
+        
+        # Kolor dla danego etapu
+        color = phase_colors.get(row["phase"], "#CCCCCC")
+        
+        # Pasek etapu
+        ax.barh(
+            y=i,
+            width=duration_num,
+            left=start_num,
+            height=0.6,
+            align="center",
+            alpha=0.8,
+            color=color,
+            edgecolor="black",
+            linewidth=1,
+        )
+        
+        # Dodatkowa obwódka dla etapów z kamieniami milowymi
+        if row["has_milestones"]:
+            ax.barh(
+                y=i,
+                width=duration_num,
+                left=start_num,
+                height=0.6,
+                align="center",
+                alpha=0,
+                edgecolor="black",
+                linewidth=3,
+                zorder=3,
+            )
+        
+        # Etykieta z datami na pasku
+        mid_point = start_num + duration_num / 2
+        ax.text(mid_point, i, f"{row['start'].strftime('%m/%y')} - {row['end'].strftime('%m/%y')}", 
+                ha='center', va='center', fontweight='bold', fontsize=9, color='white',
+                bbox=dict(boxstyle='round,pad=0.2', facecolor='black', alpha=0.7))
+    
+    # Oś Y – nazwy etapów
+    ax.set_yticks(list(y_positions))
+    phase_labels = []
+    for _, row in phase_df.iterrows():
+        phase_num = row['phase'].split(' - ')[0]
+        phase_name = row['phase'].split(' - ')[1]
+        duration_days = (row['end'] - row['start']).days
+        phase_labels.append(f"{phase_num}\n{phase_name}\n({duration_days} dni)")
+    
+    ax.set_yticklabels(phase_labels, fontsize=10)
+    
+    # Formatowanie osi X (daty)
+    ax.xaxis_date()
+    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
+    ax.xaxis.set_minor_locator(mdates.MonthLocator())
+    
+    plt.xticks(rotation=45, fontsize=10)
+    ax.tick_params(axis='y', labelsize=10)
+    
+    ax.set_xlabel("Czas", fontsize=12, fontweight='bold')
+    ax.set_title("Harmonogram - Etapy", fontsize=16, fontweight='bold', pad=20)
+    
+    # Legenda
+    legend_elements = []
+    for phase, color in phase_colors.items():
+        short_name = phase.split(' - ')[1]
+        legend_elements.append(plt.Rectangle((0,0),1,1, facecolor=color, alpha=0.8, label=short_name))
+    
+    ax.legend(handles=legend_elements, loc='center left', bbox_to_anchor=(1, 0.5), fontsize=9, 
+              title="Etapy projektu", title_fontsize=10)
+    
+    # Siatka
+    ax.grid(axis="x", linestyle="--", alpha=0.3)
+    ax.grid(axis="y", linestyle=":", alpha=0.2)
+    
+    plt.tight_layout()
+    
+    # Zapisanie do plików
+    plt.savefig(f"{filename_prefix}_gantt.png", dpi=300, bbox_inches="tight")
+    plt.savefig(f"{filename_prefix}_gantt.pdf", bbox_inches="tight")
+    
+    return fig, ax
+
 # Załóżmy, że lista 'tasks' jest zaimportowana z poprzedniego fragmentu
 
 # 1. Przekształcenie na DataFrame
@@ -559,7 +703,7 @@ for phase, color in phase_colors.items():
     short_name = phase.split(' - ')[1]  # Tylko opis bez numeru
     legend_elements.append(plt.Rectangle((0,0),1,1, facecolor=color, alpha=0.7, label=short_name))
 
-ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(0, 1), fontsize=9, 
+ax.legend(handles=legend_elements, loc='center left', bbox_to_anchor=(1, 0.5), fontsize=9, 
           title="Etapy projektu", title_fontsize=10)
 
 # Siatka pionowa i pozioma dla lepszej czytelności
@@ -579,9 +723,15 @@ markdown_content = generate_markdown_structure(tasks)
 with open("struktura_projektu.md", "w", encoding="utf-8") as f:
     f.write(markdown_content)
 
+# Generowanie uproszczonego wykresu z etapami
+print("\nGenerowanie uproszczonego harmonogramu z etapami...")
+fig_phases, ax_phases = generate_phase_gantt(tasks, "harmonogram_etapy")
+
 print("Wykres Gantta został zapisany do plików:")
-print("- gantt_chart_digitalizacja.png (obraz PNG)")
-print("- gantt_chart_digitalizacja.pdf (plik PDF)")
+print("- gantt_chart_digitalizacja.png (obraz PNG - szczegółowy)")
+print("- gantt_chart_digitalizacja.pdf (plik PDF - szczegółowy)")
+print("- harmonogram_etapy_gantt.png (obraz PNG - tylko etapy)")
+print("- harmonogram_etapy_gantt.pdf (plik PDF - tylko etapy)")
 print("- struktura_projektu.md (struktura w markdown)")
 
 # plt.show()
