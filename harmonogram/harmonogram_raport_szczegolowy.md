@@ -1,6 +1,6 @@
 # Szczegółowy Harmonogram Projektu - Raport Wyczerpujący
 
-**Data wygenerowania:** 2025-12-10 16:13:29
+**Data wygenerowania:** 2025-12-10 17:29:02
 
 **Okres realizacji:** 2026-01-01 - 2028-02-15
 **Całkowity czas projektu:** 775 dni
