@@ -1,0 +1,201 @@
+Poniżej masz komplet „klocków”, które możesz od razu wkleić gdzie trzeba:
+	1.	Gotowy prompt dla LLM, który wygeneruje Pythonowy skrypt z grafiką roadmapy.
+	2.	Opis rysunku (po polsku, pod styl Twojego dokumentu).
+	3.	Tabela 9 – Roadmapa w wersji „wypolerowanej”, gotowa do wklejenia.
+
+⸻
+
+A. Prompt / instrukcje dla LLM do wygenerowania grafiki w Pythonie
+
+To możesz po prostu skopiować do innego czata z modelem/LLM.
+Jeśli chcesz, możesz zmienić numer rysunku albo tytuł.
+
+Jesteś asystentem programistycznym. Twoim zadaniem jest wygenerowanie kompletnego skryptu w Pythonie, który narysuje roadmapę rozwoju infrastruktury cyfrowej małego pensjonatu, zgodnie z poniższymi danymi z projektu.
+
+### 1. Wymagania ogólne
+
+1. Zwróć **tylko gotowy kod w Pythonie**, bez komentarza tekstowego ani dodatkowych wyjaśnień.
+2. Użyj bibliotek:
+   - `matplotlib.pyplot` (główna biblioteka do rysowania),
+   - opcjonalnie `matplotlib.patches` (jeśli potrzebne do prostokątów).
+3. Kod ma:
+   - tworzyć pojedynczy wykres (roadmapę),
+   - zapisywać obraz do pliku `roadmap_infrastruktury.png` w wysokiej rozdzielczości (np. `dpi=300`),
+   - dodatkowo wyświetlać wykres (`plt.show()`).
+
+### 2. Koncepcja wykresu
+
+1. **Oś X** – czas w ćwiartkach roku (kwartałach) w przedziale od **Q4 2025** do **Q4 2027**.
+2. **Oś Y** – poziomy dojrzałości infrastruktury:
+   - „Poziom 0 – Stan wyjściowy”
+   - „Poziom 1 – Podstawowa infrastruktura rezerwacyjna”
+   - „Poziom 2 – Infrastruktura relacyjna”
+   - „Poziom 3 – Infrastruktura analityczna i rozwojowa”
+3. Każdy poziom ma być pokazany jako **poziomy pasek (bar)** na odpowiednim przedziale czasowym:
+   - Poziom 0: Q4 2025  
+   - Poziom 1: Q1–Q4 2026  
+   - Poziom 2: Q1–Q2 2027  
+   - Poziom 3: Q2–Q4 2027  
+4. Na każdym pasku umieść **tekst z krótkim opisem** poziomu oraz trzema liniami opisującymi:
+   - „Systemy”
+   - „Dane i analityka”
+   - „Bezpieczeństwo i zarządzanie”
+
+Roadmapa ma na pierwszy rzut oka pokazywać, jak w czasie rośnie dojrzałość infrastruktury oraz jakie elementy pojawiają się na kolejnych poziomach.
+
+### 3. Dane do zakodowania
+
+Przyjmij uproszczoną skalę czasu opartą na ćwiartkach (kwartałach). Zdefiniuj funkcję pomocniczą:
+
+```python
+def tq(year, quarter, base_year=2025):
+    # year – rok (np. 2026)
+    # quarter – kwartał 1..4
+    # base_year – rok, od którego liczymy (tu 2025)
+    # wynik: liczba zmiennoprzecinkowa, gdzie 0 = Q1 base_year
+    return (year - base_year) + (quarter - 1) / 4.0
+
+Na tej podstawie zdefiniuj dane dla poziomów jako listę słowników w Pythonie, np.:
+
+levels = [
+    {
+        "name": "Poziom 0 – Stan wyjściowy",
+        "y": 0,  # pozycja na osi Y
+        "start": (2025, 4),
+        "end":   (2025, 4),  # tylko Q4 2025
+        "summary": "Brak PMS/CRM, tylko OTA + Excel, brak integracji i formalnych polityk bezpieczeństwa.",
+        "systems": "Systemy: brak PMS/CRM; tylko panel OTA i arkusze Excel.",
+        "data": "Dane i analityka: brak raportów i systematycznej analizy.",
+        "security": "Bezpieczeństwo i zarządzanie: brak formalnych polityk bezpieczeństwa i backupu."
+    },
+    {
+        "name": "Poziom 1 – Podstawowa infrastruktura rezerwacyjna",
+        "y": 1,
+        "start": (2026, 1),
+        "end":   (2026, 4),
+        "summary": "Nowa strona www, podstawowy PMS z channel managerem, rezerwacje online z płatnościami.",
+        "systems": "Systemy: strona www, PMS + booking engine + channel manager, płatności online.",
+        "data": "Dane i analityka: podstawowe raporty z PMS (rezerwacje, obłożenie).",
+        "security": "Bezpieczeństwo i zarządzanie: wstępne porządkowanie dostępu i kopii danych."
+    },
+    {
+        "name": "Poziom 2 – Infrastruktura relacyjna",
+        "y": 2,
+        "start": (2027, 1),
+        "end":   (2027, 2),
+        "summary": "PMS zintegrowany z CRM, uruchomiony program lojalnościowy i raporty operacyjne.",
+        "systems": "Systemy: PMS zintegrowany z CRM i booking engine; program lojalnościowy.",
+        "data": "Dane i analityka: raporty operacyjne (obłożenie, kanały sprzedaży, przychody).",
+        "security": "Bezpieczeństwo i zarządzanie: podstawowe procedury backupu i ochrony danych klientów."
+    },
+    {
+        "name": "Poziom 3 – Infrastruktura analityczna i rozwojowa",
+        "y": 3,
+        "start": (2027, 2),
+        "end":   (2027, 4),
+        "summary": "Dashboardy KPI, dynamic pricing, częściowa automatyzacja marketingu, ugruntowane procedury bezpieczeństwa.",
+        "systems": "Systemy: rozszerzone konfiguracje PMS/CRM, narzędzia marketing automation.",
+        "data": "Dane i analityka: dashboardy KPI, RevPAR, ADR, udział kanałów, zasady dynamicznego ustalania cen.",
+        "security": "Bezpieczeństwo i zarządzanie: formalne procedury bezpieczeństwa, regularne backupy, przeglądy KPI."
+    },
+]
+
+Zakres czasowy w jednostkach liczbowych policz tak:
+
+start_x = tq(start_year, start_quarter)
+end_x = tq(end_year, end_quarter + 1)  # +1 kwartał, żeby pasek był domknięty
+width = end_x - start_x
+
+Dla Poziomu 0 przyjmij, że pasek obejmuje tylko Q4 2025, czyli:
+	•	start = tq(2025, 4)
+	•	end = tq(2025, 5) (czyli technicznie wyjście poza Q4, ale chodzi o szerokość paska jednej ćwiartki)
+
+4. Rysowanie wykresu
+	1.	Ustaw rozmiar figury np. figsize=(10, 6) (lub podobny).
+	2.	Dla każdego poziomu użyj np. ax.broken_barh() lub ax.barh() do narysowania paska:
+	•	oś X – start_x, width,
+	•	oś Y – pozycja y (np. użyj szerokości paska wysokości 0.6–0.8 jednostki, żeby paski były od siebie odseparowane).
+	3.	Na pasku umieść opis tekstowy jako wielolinijkowy string, np.:
+
+label = (
+    f"{level['name']}\n"
+    f"{level['summary']}\n"
+    f"{level['systems']}\n"
+    f"{level['data']}\n"
+    f"{level['security']}"
+)
+ax.text(
+    start_x + width/2,
+    level['y'],
+    label,
+    va="center",
+    ha="center",
+    fontsize=8,
+    wrap=True
+)
+
+
+	4.	Oś Y:
+	•	ustaw ticki w miejscach [0, 1, 2, 3],
+	•	podpisz je skróconymi nazwami poziomów, np.:
+	•	„Poziom 0 – wyjściowy”
+	•	„Poziom 1 – rezerwacje”
+	•	„Poziom 2 – relacje”
+	•	„Poziom 3 – analityka”
+	5.	Oś X:
+	•	możesz pokazać etykiety co kwartał, np.:
+	•	„Q4 2025”
+	•	„Q1 2026”
+	•	„Q2 2026”
+	•	…
+	•	„Q4 2027”
+	•	etykiety możesz zbudować iterując po latach 2025–2027 i kwartałach 1–4.
+	6.	Dodaj tytuł wykresu:
+	•	ax.set_title("Roadmapa rozwoju infrastruktury cyfrowej pensjonatu (2025–2027)")
+	7.	Dodaj podpis osi X:
+	•	ax.set_xlabel("Czas (kwartały)")
+	8.	Dodaj plt.tight_layout() przed zapisaniem i wyświetleniem wykresu.
+
+5. Wynik
+
+Na końcu:
+	•	zapisz wykres do pliku roadmap_infrastruktury.png z dpi=300,
+	•	wyświetl go (plt.show()).
+
+Zwróć wyłącznie finalny kod Python spełniający powyższe wymagania.
+
+---
+
+## B. Opis rysunku do dokumentu
+
+Możesz wkleić to np. pod obrazkiem jako podpis i krótki opis w tekście.
+
+**Podpis pod rysunkiem:**
+
+> **Rysunek X. Roadmapa rozwoju infrastruktury cyfrowej pensjonatu w latach 2025–2027**
+
+**Opis w tekście (propozycja akapitu):**
+
+Roadmapa na rysunku X przedstawia planowany rozwój infrastruktury cyfrowej pensjonatu w horyzoncie od IV kwartału 2025 r. do IV kwartału 2027 r. Na osi pionowej pokazano kolejne poziomy dojrzałości infrastruktury (0–3), a na osi poziomej – kolejne kwartały.  
+Poziom 0 (stan wyjściowy) odzwierciedla sytuację, w której obiekt korzysta wyłącznie z panelu OTA i arkuszy kalkulacyjnych, bez PMS, CRM i formalnych zasad bezpieczeństwa danych. W 2026 r. wdrażany jest Poziom 1 – podstawowa infrastruktura rezerwacyjna, obejmująca nową stronę www, PMS z channel managerem oraz rezerwacje online z płatnościami, zgodnie z etapami E1–E3 harmonogramu. W pierwszej połowie 2027 r. osiągany jest Poziom 2 – infrastruktura relacyjna – z uruchomionym CRM, programem lojalnościowym i raportami operacyjnymi (etap E4). W drugiej połowie 2027 r. pensjonat wchodzi na Poziom 3 – infrastrukturę analityczną i rozwojową – charakteryzującą się dashboardami KPI, zasadami dynamicznego ustalania cen oraz ugruntowanymi procedurami bezpieczeństwa i backupu (etapy E5–E6). Roadmapa syntetycznie pokazuje, w jaki sposób infrastruktura cyfrowa krok po kroku zaczyna wspierać strategię biznesową i cele IT opisane w wcześniejszych częściach projektu.   
+
+---
+
+## C. Tabela do dokumentu (Tabela 9 – Roadmapa)
+
+Poniżej masz Tabelę 9 w formacie markdown, lekko „odszumioną” (bez śmieciowych linków). To jest logicznie zgodne z Twoim obecnym projektem.  [oai_citation:0‡BE projekt cz 2 (14).md](sediment://file_00000000274471f7aa2754677356c85b)  
+
+```markdown
+**Tabela 9. Roadmapa rozwoju infrastruktury cyfrowej**
+
+| Poziom | Horyzont czasowy | Opis infrastruktury | Kluczowe działania |
+|--------|------------------|---------------------|--------------------|
+| **0 – Stan wyjściowy** | do końca 2025 | Brak PMS/CRM, tylko OTA + Excel, brak integracji, brak formalnych polityk bezpieczeństwa i backupu. | Inwentaryzacja istniejących narzędzi, ocena łącza internetowego i sprzętu, identyfikacja głównych luk infrastrukturalnych (przygotowanie do startu programu od Q1 2026). |
+| **1 – Podstawowa infrastruktura rezerwacyjna** | Q1–Q4 2026 | Nowa strona www, podstawowy PMS z kalendarzem i channel managerem, zintegrowany z OTA; pełny proces rezerwacji online z płatnościami (jeszcze bez CRM i zaawansowanej analityki). | Zadania: E1.1–E1.4, E2.1–E2.5, E3.1–E3.5: formalne uruchomienie programu i budżetu IT; wybór i wdrożenie PMS/booking engine; projekt i wdrożenie nowej strony www oraz identyfikacji; uruchomienie płatności online i integracji z OTA; testy i start produkcyjny systemu rezerwacji. |
+| **2 – Infrastruktura relacyjna** | Q1–Q2 2027 | PMS zintegrowany z booking engine i CRM; uruchomione płatności online, działający program lojalnościowy oraz podstawowe raporty operacyjne (obłożenie, kanały sprzedaży, przychody). | Zadania: E4.1–E4.4: wdrożenie CRM, import dotychczasowych kontaktów, uruchomienie programu lojalnościowego (kody rabatowe), konfiguracja automatycznych e-maili przed/po pobycie oraz podstawowych raportów operacyjnych. |
+| **3 – Infrastruktura analityczna i rozwojowa** | Q2–Q4 2027 | Dashboardy zarządcze (KPI), dynamic pricing, częściowa automatyzacja marketingu (segmentacja, kampanie), ugruntowane procedury bezpieczeństwa i backupu. | Zadania: E5.1–E5.3, E6.1–E6.3: konfiguracja zaawansowanych raportów i dashboardów (m.in. obłożenie, ADR, RevPAR, udział kanałów); wdrożenie zasad dynamicznego ustalania cen; szkolenia z analityki i pracy na danych; przegląd KPI z IT BSC, korekta procesów; decyzje o dalszych inwestycjach (chatbot, kolejne integracje, dodatkowe rozwiązania SaaS). |
+
+
+⸻
+
+Jeśli chcesz, mogę w kolejnym kroku przerobić ten prompt tak, żeby LLM zwrócił od razu gotowy kod + mini-legendę na wykresie albo wersję dostosowaną specjalnie np. pod Jupyter/Colaba.

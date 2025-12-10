@@ -515,6 +515,246 @@ def export_to_markdown(items: List[RoadmapItem], filename: str = "roadmap_tabela
     
     print(f"Wyeksportowano tabelę Markdown do pliku: {filename}")
 
+def generate_clean_roadmap_table(tasks=None, filename_prefix="roadmap_clean_table"):
+    """
+    Generuje czytelną roadmapę w stylu tabelarycznym z konkretnymi zadaniami z harmonogramu
+    """
+    # Definicja struktrury tabeli z precyzyjnymi przedziałami
+    columns = [
+        "Przygotowania\n2025-10-01 do 2025-12-31",
+        "Podstawowa infrastruktura\n2026-01-01 do 2026-09-30", 
+        "System rezerwacji\n2026-10-01 do 2027-01-15",
+        "Infrastruktura relacyjna\n2027-01-16 do 2027-06-15",
+        "Analityka i rozwój\n2027-06-16 do 2028-02-15"
+    ]
+    
+    rows = [
+        {"id": 0, "title": "Poziom 0 – Stan wyjściowy", "color": "#4472C4"},
+        {"id": 1, "title": "Poziom 1 – Podstawowa infrastruktura rezerwacyjna", "color": "#E97132"},
+        {"id": 2, "title": "Poziom 2 – Infrastruktura relacyjna", "color": "#70AD47"},
+        {"id": 3, "title": "Poziom 3 – Infrastruktura analityczna i rozwojowa", "color": "#C55A5A"}
+    ]
+    
+    # Zawartość komórek - konkretne zadania z harmonogramu
+    cell_content = {
+        (0, 0): [  # Poziom 0, Przygotowania
+            {
+                "text": "Brak PMS/CRM\nTylko OTA + Excel\nBrak integracji",
+                "color": "#4472C4"
+            },
+            {
+                "text": "Inwentaryzacja narzędzi\nOcena łącza i sprzętu\nIdentyfikacja luk",
+                "color": "#4472C4"
+            }
+        ],
+        (1, 1): [  # Poziom 1, Podstawowa infrastruktura (2026-01-01 do 2026-09-30)
+            {
+                "text": "E1.1: Formalne uruchomienie programu\n(2026-01-01 do 2026-01-15) 🎯",
+                "color": "#E97132"
+            },
+            {
+                "text": "E1.2: Inwentaryzacja obecnych narzędzi\n(2026-01-16 do 2026-02-28)",
+                "color": "#E97132"
+            },
+            {
+                "text": "E1.3: Określenie budżetu IT\n(2026-02-01 do 2026-02-28)",
+                "color": "#E97132"
+            },
+            {
+                "text": "E1.4: Wybór dostawcy PMS/booking engine\n(2026-02-15 do 2026-03-31)",
+                "color": "#E97132"
+            },
+            {
+                "text": "E2.1: Projekt nowej strony www\n(2026-04-01 do 2026-05-31)",
+                "color": "#E97132"
+            },
+            {
+                "text": "E2.2: Logo i szablony graficzne\n(2026-04-01 do 2026-05-15)",
+                "color": "#E97132"
+            },
+            {
+                "text": "E2.3: Wdrożenie nowej strony www\n(2026-06-01 do 2026-08-31)",
+                "color": "#E97132"
+            },
+            {
+                "text": "E2.4: Treści i zdjęcia + SEO\n(2026-07-01 do 2026-09-30)",
+                "color": "#E97132"
+            },
+            {
+                "text": "E2.5: Finalizacja strony www\n(2026-09-01 do 2026-09-30) 🎯",
+                "color": "#E97132"
+            }
+        ],
+        (1, 2): [  # Poziom 1, System rezerwacji (2026-10-01 do 2027-01-15)
+            {
+                "text": "E3.1: Uruchomienie booking engine\n(2026-10-01 do 2026-10-31)",
+                "color": "#E97132"
+            },
+            {
+                "text": "E3.2: Uruchomienie płatności online\n(2026-11-01 do 2026-11-30)",
+                "color": "#E97132"
+            },
+            {
+                "text": "E3.3: Integracja z OTA\n(2026-11-01 do 2026-12-15)",
+                "color": "#E97132"
+            },
+            {
+                "text": "E3.4: Testy procesu rezerwacji\n(2026-12-01 do 2026-12-31)",
+                "color": "#E97132"
+            },
+            {
+                "text": "E3.5: Start produkcyjny systemu\n(2027-01-01 do 2027-01-15) 🎯",
+                "color": "#E97132"
+            }
+        ],
+        (2, 3): [  # Poziom 2, Infrastruktura relacyjna (2027-01-16 do 2027-06-15)
+            {
+                "text": "E4.1: Wdrożenie CRM\n(2027-01-16 do 2027-03-15)",
+                "color": "#70AD47"
+            },
+            {
+                "text": "E4.2: Import dotychczasowych kontaktów\n(2027-03-16 do 2027-04-15)",
+                "color": "#70AD47"
+            },
+            {
+                "text": "E4.3: Program lojalnościowy\n(2027-04-16 do 2027-05-15)",
+                "color": "#70AD47"
+            },
+            {
+                "text": "E4.4: Automatyczne e-maile\n(2027-05-16 do 2027-06-15) 🎯",
+                "color": "#70AD47"
+            }
+        ],
+        (3, 4): [  # Poziom 3, Analityka i rozwój (2027-06-16 do 2028-02-15)
+            {
+                "text": "E5.1: Konfiguracja raportów\n(2027-06-16 do 2027-08-15)",
+                "color": "#C55A5A"
+            },
+            {
+                "text": "E5.2: Dynamic pricing\n(2027-08-16 do 2027-10-15)",
+                "color": "#C55A5A"
+            },
+            {
+                "text": "E5.3: Szkolenia z analityki\n(2027-10-16 do 2027-11-15) 🎯",
+                "color": "#C55A5A"
+            },
+            {
+                "text": "E6.1: Przegląd KPI z IT BSC\n(2027-11-16 do 2027-12-15)",
+                "color": "#C55A5A"
+            },
+            {
+                "text": "E6.2: Korekta procesów\n(2027-12-16 do 2028-01-15)",
+                "color": "#C55A5A"
+            },
+            {
+                "text": "E6.3: Decyzje o dalszych inwestycjach\n(2028-01-16 do 2028-02-15) 🎯",
+                "color": "#C55A5A"
+            }
+        ]
+    }
+    
+    # Utworzenie figury
+    fig, ax = plt.subplots(figsize=(20, 14))
+    ax.set_xlim(0, len(columns))
+    ax.set_ylim(0, len(rows) + 0.5)  # Dodatkowe miejsce na daty
+    
+    # Pokazanie osi X z precyzyjnymi datami
+    ax.set_xticks([i + 0.5 for i in range(len(columns))])
+    ax.set_xticklabels([
+        "2025-10-01\ndo\n2025-12-31",
+        "2026-01-01\ndo\n2026-09-30",
+        "2026-10-01\ndo\n2027-01-15",
+        "2027-01-16\ndo\n2027-06-15",
+        "2027-06-16\ndo\n2028-02-15"
+    ], rotation=0, fontsize=10, ha='center')
+    
+    # Ukrycie osi Y ale pokazanie X
+    ax.set_yticks([])
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_visible(True)  # Pokazujemy dolną oś dla dat
+    ax.tick_params(axis='x', which='both', bottom=True, top=False)
+    
+    # Rysowanie nagłówków kolumn (turkusowe)
+    for i, col_title in enumerate(columns):
+        ax.add_patch(plt.Rectangle((i, len(rows)-0.15), 1, 0.15, 
+                                 facecolor='#17A2B8', alpha=0.9, edgecolor='white', linewidth=2))
+        col_text = col_title.split('\n')[0]  # Tylko pierwsza linia dla nagłówka
+        ax.text(i + 0.5, len(rows) - 0.075, col_text, 
+               ha='center', va='center', fontsize=11, fontweight='bold', color='white')
+    
+    # Rysowanie nagłówków wierszy (kolorowe)
+    for j, row_info in enumerate(rows):
+        row_idx = len(rows) - 1 - j  # Odwracamy kolejność (Poziom 0 na górze)
+        ax.text(-0.05, row_idx + 0.5, row_info['title'], 
+               ha='right', va='center', fontsize=10, fontweight='bold', 
+               color=row_info['color'])
+    
+    # Rysowanie siatki i zawartości komórek
+    for i in range(len(columns)):
+        for j in range(len(rows)):
+            # Współrzędne komórki
+            x, y = i, len(rows) - 1 - j
+            
+            # Rysowanie białej komórki z lekką ramką
+            ax.add_patch(plt.Rectangle((x, y), 1, 1, 
+                                     facecolor='white', edgecolor='#E0E0E0', linewidth=1))
+            
+            # Dodawanie prostokątów z opisami
+            if (j, i) in cell_content:
+                pills = cell_content[(j, i)]
+                pill_height = 0.12
+                pill_margin = 0.03
+                start_y = y + 0.85
+                
+                for idx, pill in enumerate(pills):
+                    pill_y = start_y - idx * (pill_height + pill_margin)
+                    
+                    # Rysowanie zaokrąglonego prostokąta (pill)
+                    from matplotlib.patches import FancyBboxPatch
+                    pill_rect = FancyBboxPatch(
+                        (x + 0.03, pill_y - pill_height/2), 0.94, pill_height,
+                        boxstyle="round,pad=0.01",
+                        facecolor=pill['color'],
+                        alpha=0.85,
+                        edgecolor='white',
+                        linewidth=1
+                    )
+                    ax.add_patch(pill_rect)
+                    
+                    # Dodawanie tekstu do prostokąta
+                    ax.text(x + 0.5, pill_y, pill['text'],
+                           ha='center', va='center', fontsize=7.5,
+                           color='white', fontweight='bold',
+                           wrap=True)
+    
+    # Tytuł całej roadmapy
+    ax.text(len(columns)/2, len(rows) + 0.4, 
+           "Roadmapa Digitalizacji Hotelu - Szczegółowy Harmonogram",
+           ha='center', va='center', fontsize=18, fontweight='bold', color='#2C3E50')
+    
+    # Podtytuł
+    ax.text(len(columns)/2, len(rows) + 0.25, 
+           "Konkretne zadania według precyzyjnych przedziałów czasowych",
+           ha='center', va='center', fontsize=14, color='#34495E')
+    
+    # Etykieta osi X
+    ax.set_xlabel("Precyzyjne okresy realizacji", fontsize=12, fontweight='bold', color='#2C3E50')
+    
+    plt.tight_layout()
+    
+    # Zapisanie do plików
+    plt.savefig(f"{filename_prefix}.png", dpi=300, bbox_inches="tight", 
+               facecolor='white', edgecolor='none')
+    plt.savefig(f"{filename_prefix}.pdf", bbox_inches="tight", 
+               facecolor='white', edgecolor='none')
+    
+    print(f"Zapisano czytelną roadmapę tabelaryczną do pliku: {filename_prefix}.png")
+    print(f"Zapisano czytelną roadmapę tabelaryczną do pliku: {filename_prefix}.pdf")
+    
+    return fig, ax
+
 def print_roadmap_summary(items: List[RoadmapItem]) -> None:
     """
     Wyświetla podsumowanie roadmapy w konsoli.
@@ -547,6 +787,9 @@ if __name__ == "__main__":
     
     # Generuj szczegółowy wykres Gantta
     plot_detailed_gantt(ROADMAP_ITEMS)
+    
+    # Generuj czytelną roadmapę tabelaryczną z konkretnymi zadaniami
+    generate_clean_roadmap_table(ROADMAP_ITEMS)
     
     # Eksportuj do CSV
     export_to_csv(ROADMAP_ITEMS)
